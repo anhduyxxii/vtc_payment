@@ -51,7 +51,8 @@ module VtcPayment
 
       def base_url
         # from pdf document
-        sandbox? ? "http://sandbox1.vtcebank.vn/pay.vtc.vn/cong-thanh-toan/checkout.html" : self.class.production_url
+        sandbox? ? "http://sandbox1.vtcebank.vn/pay.vtc.vn/cong-thanh-toan/checkout.html" : 
+          VtcPayment::Bank::Request.production_url
       end
 
       # If you want to limit payment type, choose sub classes defined below
@@ -61,29 +62,28 @@ module VtcPayment
 
       class CreditCard < Request
         def screen_method
-          "PaymentType:Visa;"
+          "InternationalCard"
         end
         %W(Visa Master).each do |card|
           module_eval <<-EOS
             class #{card} < CreditCard
               def screen_method
-                "PaymentType:Visa;Direct:#{card}"
+                "#{card}"
               end
             end
           EOS
         end
-
       end
 
       class Bank < Request
         def screen_method
-          "PaymentType:Bank;"
+          "DomesticBank"
         end
         %W(Vietcombank Techcombank MB Vietinbank Agribank DongABank Oceanbank BIDV SHB VIB MaritimeBank Eximbank ACB HDBank NamABank SaigonBank Sacombank VietABank VPBank TienPhongBank SeaABank PGBank Navibank GPBank BACABANK PHUONGDONG  ABBANK LienVietPostBank BVB).each do |bank|
           module_eval <<-EOS
             class #{bank} < Bank
               def screen_method
-                "PaymentType:Bank;Direct:#{bank}"
+                "#{bank}"
               end
             end
           EOS
@@ -92,13 +92,13 @@ module VtcPayment
 
       class VTCPay < Request
         def screen_method
-          "PaymentType:Bank;"
+          "VTCPay"
         end
       end
 
       module Currency
-        VND = 1
-        USD = 2
+        VND = "VND"
+        USD = "USD"
       end
 
       # notice you need to escapeHTML when you embed this link in your javascript code.
@@ -107,36 +107,39 @@ module VtcPayment
         raise "order id can not be blank" if params[:order_id].to_s.empty?
 
         data = [
-          @website_id,
-          Currency::VND, # 1=VND, 2=USD
-          params[:order_id],
-          params[:amount].to_i.to_s, # VND only
-          @account,
+          params[:amount].to_i.to_s,
+          params[:address].to_s,
+          params[:city_name].to_s,
+          params[:email].to_s,
+          params[:first_name].to_s,
+          params[:telephone].to_s,
+          params[:last_name].to_s,
+          Currency::VND,
           screen_method(),
-          @secret_key,
+          @account,
+          params[:ref_no],
           @callback_url,
-        ].join("-")
-        sign = Digest::SHA256.hexdigest( data ).upcase
+          @website_id,
+          @secret_key
+        ].join("|")
+        signature = Digest::SHA256.hexdigest( data ).upcase
         url = base_url()
 
         query = {
-          "website_id": @website_id,
-          "payment_method": Currency::VND,
-          "order_code": params[:order_id],
           "amount": params[:amount].to_i.to_s,
-          "receiver_acc": @account,
-          "urlreturn": CGI.escape(@callback_url.to_s),
-          "customer_first_name": CGI.escape(params[:first_name].to_s),
-          "customer_last_name": CGI.escape(params[:last_name].to_s),
-          "customer_mobile": CGI.escape(params[:mobile].to_s),
-          "bill_to_address_line1": CGI.escape(params[:address1].to_s),
-          "bill_to_address_line2": CGI.escape(params[:address2].to_s),
-          "city_name": CGI.escape(params[:city_name].to_s),
-          "address_country": CGI.escape(params[:country].to_s),
-          "customer_email": CGI.escape(params[:email].to_s),
-          "order_des": CGI.escape(params[:order_description].to_s),
-          "param_extend": CGI.escape(screen_method()),
-          "sign": sign,
+          "bill_to_address": CGI.escape(params[:address].to_s),
+          "bill_to_address_city": CGI.escape(params[:city_name].to_s),
+          "bill_to_email": CGI.escape(params[:email].to_s),
+          "bill_to_forename": CGI.escape(params[:first_name].to_s),
+          "bill_to_phone": CGI.escape(params[:telephone].to_s),
+          "bill_to_surname": CGI.escape(params[:last_name].to_s),
+          "currency": Currency::VND,
+          "payment_type": CGI.escape(screen_method()),
+          "receiver_account": @account,
+          "reference_number": params[:ref_no],
+          "url_return": CGI.escape(@callback_url.to_s),
+          "website_id": @website_id,
+          "signature": signature,
         }
         url += "?"
         url +=  query.map{|k,v| [k,v].join("=") }.join("&")
