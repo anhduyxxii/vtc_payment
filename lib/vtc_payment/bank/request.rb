@@ -12,17 +12,6 @@ require "date"
 # USAGE
 # req = VtcPayment::Bank::Request.new( account, website_id, SECRET_KEY, callback_url )
 # params = {
-#   order_id: 1234, # required
-#   amount: 100000, # VND, required
-#   first_name: ,
-#   last_name: ,
-#   mobile: ,
-#   address1: ,
-#   address2: ,
-#   city_name: ,
-#   country: ,
-#   email: ,
-#   order_description: ,
 # }
 # url = req.url(params)
 module VtcPayment
@@ -104,7 +93,7 @@ module VtcPayment
       # notice you need to escapeHTML when you embed this link in your javascript code.
       def url( params )
         raise "amount has to be a positive number" if params[:amount].to_i <= 0
-        raise "order id can not be blank" if params[:order_id].to_s.empty?
+        raise "ref no can not be blank" if params[:ref_no].to_s.empty?
 
         data = [
           params[:amount].to_i.to_s,
