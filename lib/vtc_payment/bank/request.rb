@@ -40,7 +40,7 @@ module VtcPayment
 
       def base_url
         # from pdf document
-        sandbox? ? "http://sandbox1.vtcebank.vn/payportalv2/checkout.html" : 
+        sandbox? ? "http://alpha1.vtcpay.vn/portalgateway/checkout.html" : 
           VtcPayment::Bank::Request.production_url
       end
 
